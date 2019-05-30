@@ -1,6 +1,7 @@
 package com.amol.spring.boot.security.springSecurity.controller;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -20,7 +21,7 @@ public class AdminController {
 	@Autowired
 	private BCryptPasswordEncoder bCryptPasswordEncoder;
 	
-	
+	@PreAuthorize("hasAnyRole('ADMIN')")
 	@PostMapping("/admin/add")
 	public String addUser(@RequestBody User user) {
 		String password = user.getPassword();
