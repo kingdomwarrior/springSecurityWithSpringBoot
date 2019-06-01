@@ -1,22 +1,27 @@
 package com.amol.spring.boot.security.springSecurity.model;
 
+import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
+import javax.persistence.GenerationType;
 import javax.persistence.Id;
-
-import org.hibernate.annotations.GenericGenerator;
+import javax.persistence.Table;
 
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Entity
+@Table(name = "role")
 @Data
 @NoArgsConstructor
 public class Role {
 
-	@Id @GeneratedValue(generator="system-uuid")
-	@GenericGenerator(name="system-uuid", strategy = "uuid")
-	private String roleId;
+	@Id 
+	@GeneratedValue(strategy = GenerationType.AUTO)
+	@Column(name = "role_id")
+	private Integer roleId;
 	
-	private String roleName;
+	
+	@Column(name = "role")
+	private String role;
 }

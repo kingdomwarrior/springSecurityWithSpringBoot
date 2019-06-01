@@ -6,38 +6,36 @@ import java.util.stream.Collectors;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.stereotype.Service;
-
 import com.amol.spring.boot.security.springSecurity.model.User;
 
 import lombok.Getter;
 import lombok.Setter;
 @Getter
 @Setter
-@Service
-public class CustomUserDetails implements UserDetails{
+public class CustomUserDetails extends User implements UserDetails{
 
-	private User user;
-	
-	/**
-	 * 
-	 */
 	private static final long serialVersionUID = 8025167813775830139L;
-
+	
+	public CustomUserDetails(final User users) {
+        super(users);
+    }
+	
 	@Override
 	public Collection<? extends GrantedAuthority> getAuthorities() {
-		return user.getRoles().stream().map(role -> new SimpleGrantedAuthority("ROLE_" + role))
-				.collect(Collectors.toList());		
+		return getRoles()
+                .stream()
+                .map(role -> new SimpleGrantedAuthority("ROLE_" + role.getRole()))
+                .collect(Collectors.toList());
 	}
 
 	@Override
 	public String getPassword() {
-		return user.getPassword();
+		return super.getPassword();
 	}
 
 	@Override
 	public String getUsername() {
-		return user.getUserName();
+		return super.getName();
 	}
 
 	@Override

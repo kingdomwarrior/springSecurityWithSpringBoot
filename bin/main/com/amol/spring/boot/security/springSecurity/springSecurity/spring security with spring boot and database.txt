@@ -1209,3 +1209,1255 @@ http://localhost:8080/rest/auth/getData
 so it will ask for user name and password
 so user name will be 
 
+pring security with spring boot and database
+-------------------------------------------[------
+1)download gradle project from https://start.spring.io/
+2) import existing gradle project in the sts
+3)create below  packages
+com.amol.spring.boot.security.springSecurity.controller
+com.amol.spring.boot.security.springSecurity.model
+com.amol.spring.boot.security.springSecurity.repository
+com.amol.spring.boot.security.springSecurity.service
+com.amol.spring.boot.security.springSecurity.config
+
+4)refresh project
+
+
+5) we are going to perform role based security for a specific user.
+so lets create the model first.
+
+6)create a class called User
+
+package com.amol.spring.boot.security.springSecurity.model;
+
+import java.util.Set;
+
+import javax.persistence.CascadeType;
+import javax.persistence.Entity;
+import javax.persistence.FetchType;
+import javax.persistence.GeneratedValue;
+import javax.persistence.Id;
+import javax.persistence.JoinColumn;
+import javax.persistence.JoinTable;
+import javax.persistence.OneToMany;
+
+import org.hibernate.annotations.GenericGenerator;
+
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Entity
+@Data
+@NoArgsConstructor
+public class User {
+
+	@Id @GeneratedValue(generator="system-uuid")
+	@GenericGenerator(name="system-uuid", strategy = "uuid")
+	private String userId;
+	
+	private String userName;
+	
+	private String email;
+	
+	private String password;
+	
+	
+}
+
+
+
+7) create class Role
+
+package com.amol.spring.boot.security.springSecurity.model;
+
+import javax.persistence.Entity;
+import javax.persistence.GeneratedValue;
+import javax.persistence.Id;
+
+import org.hibernate.annotations.GenericGenerator;
+
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Entity
+@Data
+@NoArgsConstructor
+public class Role {
+
+	@Id @GeneratedValue(generator="system-uuid")
+	@GenericGenerator(name="system-uuid", strategy = "uuid")
+	private String roleId;
+	
+	private String roleName;
+}
+
+
+
+
+8)as a user can have multiple roles, a user can be a moderator, or he can be admin, or he can be a normal user
+so lets define a set of roles for the user inside user class.
+
+add below.
+
+
+private Set<Role> roles;
+
+
+
+
+9)as one user can have multiple roles, so, include one to many association between user and roles.
+
+so mention oneToMany on roles like below.also mention cascade and fetch types
+
+@OneToMany(cascade = CascadeType.ALL, fetch = FetchType.EAGER)
+private Set<Role> roles;
+
+
+10)now i want one more seperate table between user and role.
+
+i want there userId and roleId to be mapped in a seperate join table.
+
+so for that weite a write a annotation @JoinTable inside User class - on field roles like below.
+
+@JoinTable(name = "user_role", joinColumns = @JoinColumn(name ="userId"), inverseJoinColumns = @JoinColumn(name="roleId"))
+	private Set<Role> roles;
+	
+11) so final roles will be look like below.
+
+@OneToMany(cascade = CascadeType.ALL, fetch = FetchType.EAGER)
+	@JoinTable(name = "user_role", joinColumns = @JoinColumn(name ="userId"), inverseJoinColumns = @JoinColumn(name="roleId"))
+	private Set<Role> roles;
+	
+	
+	
+	
+final Uer class will be like below.
+
+package com.amol.spring.boot.security.springSecurity.model;
+
+import java.util.Set;
+
+import javax.persistence.CascadeType;
+import javax.persistence.Entity;
+import javax.persistence.FetchType;
+import javax.persistence.GeneratedValue;
+import javax.persistence.Id;
+import javax.persistence.JoinColumn;
+import javax.persistence.JoinTable;
+import javax.persistence.OneToMany;
+
+import org.hibernate.annotations.GenericGenerator;
+
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Entity
+@Data
+@NoArgsConstructor
+public class User {
+
+	@Id @GeneratedValue(generator="system-uuid")
+	@GenericGenerator(name="system-uuid", strategy = "uuid")
+	private String userId;
+	
+	private String userName;
+	
+	private String email;
+	
+	private String password;
+	
+	@OneToMany(cascade = CascadeType.ALL, fetch = FetchType.EAGER)
+	@JoinTable(name = "user_role", joinColumns = @JoinColumn(name ="userId"), inverseJoinColumns = @JoinColumn(name="roleId"))
+	private Set<Role> roles;
+}
+
+	
+	
+12)we have done with User model
+
+13) now, to connect to the databse, add the configuration details.
+-go to application .properties file
+-and fields like below
+
+#Data source
+spring.datasource.url=jdbc:mysql://localhost/auth
+
+
+spring.datasource.username=dbuser
+spring.datasource.password=dbpass
+spring.datasource.driver-class-name=com.mysql.jdbc.Driver
+
+
+#JPPA/Hibernate
+spring.jpa.show-sql = true
+spring.jpa.hibernate.ddl-auto = update
+spring.jpa.properties.hibernate.dialect = org.hibernate.dialect.MySQL5Dialect
+spring.jpa.properties.hibernate.format_sql=true
+
+
+- Kindly update schema name, user name, password etc
+- create a schema named auth in teh mysql database.
+
+
+
+14) important note: just commenting out these properties because for now, i am using inbuild in memory h2 database
+
+14) now lets create the repository for User .
+so for this create an interface inside repository package like below.
+
+package com.amol.spring.boot.security.springSecurity.repository;
+import org.springframework.data.jpa.repository.JpaRepository;
+import com.amol.spring.boot.security.springSecurity.model.User;
+public interface UserRepository extends JpaRepository<User, String>{
+
+}
+
+
+15)similarly create one more repository named RoleRepository
+
+like below
+
+package com.amol.spring.boot.security.springSecurity.repository;
+import org.springframework.data.jpa.repository.JpaRepository;
+import com.amol.spring.boot.security.springSecurity.model.Role;
+public interface RoleRepository extends JpaRepository<Role, String>{
+
+}
+
+
+16)
+now write a method in colnroller to add a user with role admin or role user in database
+
+
+so create a AdminColtroller class
+
+- only admin can create a user and he can only specify a role
+
+-Annotate it with @RestController
+
+- write a method like below
+
+@PostMapping("/admin/add")
+	public String addUser(@RequestBody User user) {
+		return "User added successfully....";
+	}
+	
+	
+	
+
+like bwlow
+
+package com.amol.spring.boot.security.springSecurity.controller;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.amol.spring.boot.security.springSecurity.model.User;
+import com.amol.spring.boot.security.springSecurity.repository.UserRepository;
+
+@RestController
+@RequestMapping("/secure/rest")
+public class AdminController {
+
+	@Autowired
+	private UserRepository userRepository;
+	
+	@Autowired
+	private BCryptPasswordEncoder bCryptPasswordEncoder;
+	
+	
+	@PostMapping("/admin/add")
+	public String addUser(@RequestBody User user) {
+		userRepository.save(user);
+		return "User added successfully....";
+	}
+}
+
+
+	
+17) we are going to save using jpaRepository so autowire JpaRepository inside AdminController
+
+like bwlow
+
+@Autowired
+	private UserRepository userRepository;
+	
+	
+18)now call userRepository.save method.like below
+@PostMapping("/admin/add")
+	public String addUser(@RequestBody User user) {
+		userRepository.save(user);
+		return "User added successfully....";
+	}
+	
+19)
+but, here, we dont want to save the password in the plain String text format
+
+which is coming from the UI, we do not want to save the same to be stored in the database.
+we want to save it in encrypted format.
+
+- so to make it encrypted, we have to use BCryptPasswordEncoder 
+- so inject that inside controller..
+
+
+
+like below,
+
+
+
+
+@Autowired
+	private BCryptPasswordEncoder bCryptPasswordEncoder;
+	
+- now, in order to use this BCryptPasswordEncoder , we have to create a bean inside Configuration file.
+
+
+- so create a clss named SecurityConfig inside config packahe like below
+
+
+full code is below.
+
+package com.amol.spring.boot.security.springSecurity.config;
+
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+
+@Configuration
+public class SecurityConfig extends WebSecurityConfigurerAdapter {
+
+	@Override
+	protected void configure(HttpSecurity http) throws Exception {
+		http.csrf().disable();
+	}
+
+	@Bean
+	public BCryptPasswordEncoder getEncoder() {
+		return new BCryptPasswordEncoder();
+	}
+}
+
+
+
+20)
+now lets add few users one for admin one for user-
+-then we will validate them with our spring security role based and url based
+
+
+
+21)upadte the controller method like below to encrypt the password
+
+
+	@PostMapping("/admin/add")
+	public String addUser(@RequestBody User user) {
+		String password = user.getPassword();
+		String encryptedPassword = bCryptPasswordEncoder.encode(password);
+		user.setPassword(encryptedPassword);
+		userRepository.save(user);
+		return "User added successfully....";
+	}
+	
+	
+22)eun the application
+
+
+- so that we can add few users
+
+- we are going use here the default spring security to add few objects , then we will implement the customized security.
+
+
+- you will notice server will be started successsfullhy
+-
+
+22) now go to postman,
+
+paste the below url inside the url field
+
+http://localhost:8080/secure/rest/admin/add
+
+- change method as post 
+
+- add the body inside raw - add like below
+
+{
+"userName":"NaBachaSawalNaSawaliRe",
+"password":"password",
+"email":"a@a.com",
+
+"roles":[{
+	"roleName":"admin"
+}
+	]
+}
+
+
+
+23) send the request
+
+24) now you will be able to add the user successfully
+
+
+25)enable h2 console inside application.properties by adding below lines
+
+# Enabling H2 Console
+spring.h2.console.enabled=true
+
+
+
+26)
+When you reload the application, you can launch up H2 Console at http://localhost:8080/h2-console.
+
+27) important : if u r getting error localhost refused to connect , then add below line inside your config class
+http.headers().frameOptions().disable();
+
+like bwlow
+
+package com.amol.spring.boot.security.springSecurity.config;
+
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+
+@Configuration
+public class SecurityConfig extends WebSecurityConfigurerAdapter {
+
+	@Override
+	protected void configure(HttpSecurity http) throws Exception {
+		http.csrf().disable();
+		http.headers().frameOptions().disable();
+	}
+
+	@Bean
+	public BCryptPasswordEncoder getEncoder() {
+		return new BCryptPasswordEncoder();
+	}
+}
+
+
+28)now restart the application by adding it. now refresh the h2 console now u will be able to see the h2 tables created.
+
+
+
+
+29) now add the user and verify the tables inside h2 console.
+
+
+u will able to see user is added with proper data 
+
+
+30)IMP : as we always include security jar inside pom/ build.gradle, it will ask for user name and password
+before calling any service
+but this time it will not ask because we have not included @EnableWebSecurity
+
+
+31)so u have checked in database that user is added successfully.
+
+u can cehck  in database by refreshing the schema
+- the password will be in encrypted format
+
+32)now, lets addd pne more user with role USER 
+like below
+
+{
+"userName":"GumHuaSawali",
+"password":"password1",
+"email":"b@b.com",
+
+"roles":[{
+	"roleName":"user"
+}
+	]
+}
+
+
+
+
+- and send the request
+
+u will be able to see below message
+
+User added successfully....
+
+
+
+33) go to the database and check the user, role, and user_role table
+
+u will able to see all the entries and second user is added with the role user
+
+34)now we want to do  custom authorization
+-now change inside our configuration file
+-
+
+
+
+then we will fetch crediantials from databse and we will authenticate and authorize the rest endpoints.
+
+
+- go to SecurityConfig class, 
+
+-lets override the configure method with authentication manager builder so that we can 
+provide our custom user details like below
+
+- here, we are not going to do any in memory authentication.instead, we are going to do custom 
+authentication.. using the user details service
+
+
+
+--here, pass the user details service , this user details service is an interface.
+
+- so, inject thet interface first.
+like below.
+
+
+@Autowired
+private UserDetailsService userDetailsService;
+
+- now, we will create a class and we will implement userDetails service.
+
+so that we can configure our user details there.
+
+-then we want to encode the password.
+
+now, full Security config class will look like below.
+
+
+
+package com.amol.spring.boot.security.springSecurity.config;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+
+@Configuration
+public class SecurityConfig extends WebSecurityConfigurerAdapter {
+
+	@Autowired
+	private UserDetailsService userDetailsService;
+	
+	@Override
+	protected void configure(AuthenticationManagerBuilder auth) throws Exception {
+		auth.userDetailsService(userDetailsService).passwordEncoder(getEncoder());
+	}
+	
+	@Override
+	protected void configure(HttpSecurity http) throws Exception {
+		http.csrf().disable();
+		http.headers().frameOptions().disable();
+	}
+
+	@Bean
+	public BCryptPasswordEncoder getEncoder() {
+		return new BCryptPasswordEncoder();
+	}
+}
+
+
+35)
+
+- so now create our custom user details service and we will implements that from UserDetailsService.
+
+
+36) so go to service package, create a new Class called CustomUserDetailsService
+
+
+- and override the method loadUserByUsername
+-we will give user name to this method,  based on that, it will load the user from database.
+
+so to connect with database, we need to inject the repository here.repository will be UserRepository.
+remember that, this UserRepository is u only created. previously.
+
+like below.
+
+package com.amol.spring.boot.security.springSecurity.service;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
+
+import com.amol.spring.boot.security.springSecurity.repository.UserRepository;
+
+public class CustomUserDetailsService implements UserDetailsService{
+
+	@Autowired
+	private UserRepository userRepository;
+	
+	@Override
+	public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+		
+		return null;
+	}
+
+}
+
+
+
+--now, loadUserByUsername() methods return type UserDetails, so, here, UserDetails is one more class 
+provided by spring framework where we will mention our user name and password. by getting the details from the user class.
+
+- so, ets create our rown custom UserDetails class.
+
+- go to service package, and create a class called CustomUserDetails and implement it from UserDetails 
+- just like below.
+
+
+package com.amol.spring.boot.security.springSecurity.service;
+
+import java.util.Collection;
+
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
+
+public class CustomUserDetails implements UserDetails{
+
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 8025167813775830139L;
+
+	@Override
+	public Collection<? extends GrantedAuthority> getAuthorities() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public String getPassword() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public String getUsername() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public boolean isAccountNonExpired() {
+		// TODO Auto-generated method stub
+		return false;
+	}
+
+	@Override
+	public boolean isAccountNonLocked() {
+		// TODO Auto-generated method stub
+		return false;
+	}
+
+	@Override
+	public boolean isCredentialsNonExpired() {
+		// TODO Auto-generated method stub
+		return false;
+	}
+
+	@Override
+	public boolean isEnabled() {
+		// TODO Auto-generated method stub
+		return false;
+	}
+
+}
+
+
+-- u can clearly see , getUsername and getPassword methods we need to override here.
+
+- we can get the userName and password from user class.
+
+so lets write the user class here inside CustomUserDetails. like below
+
+private User user;
+
+- and, as i have added lombok, then i will add getter and setter on the class level
+
+- till this point, the class can be look like below.
+
+
+package com.amol.spring.boot.security.springSecurity.service;
+
+import java.util.Collection;
+
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
+
+import com.amol.spring.boot.security.springSecurity.model.User;
+
+import lombok.Getter;
+import lombok.Setter;
+@Getter
+@Setter
+public class CustomUserDetails implements UserDetails{
+
+	private User user;
+	
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 8025167813775830139L;
+
+	@Override
+	public Collection<? extends GrantedAuthority> getAuthorities() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public String getPassword() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public String getUsername() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public boolean isAccountNonExpired() {
+		// TODO Auto-generated method stub
+		return false;
+	}
+
+	@Override
+	public boolean isAccountNonLocked() {
+		// TODO Auto-generated method stub
+		return false;
+	}
+
+	@Override
+	public boolean isCredentialsNonExpired() {
+		// TODO Auto-generated method stub
+		return false;
+	}
+
+	@Override
+	public boolean isEnabled() {
+		// TODO Auto-generated method stub
+		return false;
+	}
+
+}
+
+
+
+-- now, we will ge the user name and password from the user class,
+
+- and make all other methods true.
+
+
+-- now, one method is remained, getAuthorities() .. here, we will provide 
+grantedAuthority based on the user name and password. which it will fetch from the user class , adn that user class we are going to set in this 
+userDetails(here, we are talking abour loadUserByUserName methods reurn type UserDetails class).which once we will get the user from the repository, 
+we will se  it manually.
+
+
+- now, inside the getAuthorities method, we will provide the authority.
+
+- so for that, get the role first.
+like below..
+
+
+
+
+@Override
+	public Collection<? extends GrantedAuthority> getAuthorities() {
+		return user.getRoles().stream().map(role -> new SimpleGrantedAuthority("ROLE_" + role))
+				.collect(Collectors.toList());		
+	}
+
+
+
+
+
+-- till this point, our final CustomUserDetails class will loom like below.
+
+package com.amol.spring.boot.security.springSecurity.service;
+
+import java.util.Collection;
+import java.util.stream.Collector;
+import java.util.stream.Collectors;
+
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
+
+import com.amol.spring.boot.security.springSecurity.model.User;
+
+import lombok.Getter;
+import lombok.Setter;
+@Getter
+@Setter
+public class CustomUserDetails implements UserDetails{
+
+	private User user;
+	
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 8025167813775830139L;
+
+	@Override
+	public Collection<? extends GrantedAuthority> getAuthorities() {
+		return user.getRoles().stream().map(role -> new SimpleGrantedAuthority("ROLE_" + role))
+				.collect(Collectors.toList());		
+	}
+
+	@Override
+	public String getPassword() {
+		return user.getPassword();
+	}
+
+	@Override
+	public String getUsername() {
+		return user.getUserName();
+	}
+
+	@Override
+	public boolean isAccountNonExpired() {
+		return true;
+	}
+
+	@Override
+	public boolean isAccountNonLocked() {
+		return true;
+	}
+
+	@Override
+	public boolean isCredentialsNonExpired() {
+		return true;
+	}
+
+	@Override
+	public boolean isEnabled() {
+		return true;
+	}
+
+}
+
+
+
+-- now, go to the CustomUserDetailsService , 
+in this, we will ge the User object by calling the  method  findBy..... here, i have reitten dots here, our field is userNAme, so we will create 
+a method inside repository called findByuserName()
+
+--the complete method signature will be : User findByUserName(String userName);
+
+so,, go to UserRepository interface and craete this findByUserName method there.
+
+- so complete UserRepository interface will look like below.
+
+
+package com.amol.spring.boot.security.springSecurity.repository;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import com.amol.spring.boot.security.springSecurity.model.User;
+
+public interface UserRepository extends JpaRepository<User, String>{
+
+	User findByUserName(String userName);
+
+}
+
+
+
+-- so, now go to again CustomUserDetailsService, u got the user object in this class now.
+
+just like below.
+
+package com.amol.spring.boot.security.springSecurity.service;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
+
+import com.amol.spring.boot.security.springSecurity.model.User;
+import com.amol.spring.boot.security.springSecurity.repository.UserRepository;
+
+public class CustomUserDetailsService implements UserDetailsService{
+
+	@Autowired
+	private UserRepository userRepository;
+	
+	@Override
+	public UserDetails loadUserByUsername(String userName) throws UsernameNotFoundException {
+		User user = userRepository.findByUserName(userName);
+		return null;
+	}
+
+}
+
+
+
+
+- now, in this loadUserByUsername method itself, check if user is not null then we will build our logic
+else throw UserNotFoundException.(this exception classs is provided by spring )
+
+
+
+
+like below
+package com.amol.spring.boot.security.springSecurity.service;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
+
+import com.amol.spring.boot.security.springSecurity.model.User;
+import com.amol.spring.boot.security.springSecurity.repository.UserRepository;
+
+public class CustomUserDetailsService implements UserDetailsService{
+
+	@Autowired
+	private UserRepository userRepository;
+	
+	@Override
+	public UserDetails loadUserByUsername(String userName) throws UsernameNotFoundException {
+		User user = userRepository.findByUserName(userName);
+		
+		if(user != null) {
+			
+		}else {
+			throw new UsernameNotFoundException("User not exist with name:"+userName);
+		}
+		return null;
+	}
+
+}
+
+
+
+-- now, we ahve to build the logic which need to enter inside if block, 
+so for that, create CustomUserDetails object and set the user which we found.
+
+
+like below.
+package com.amol.spring.boot.security.springSecurity.service;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
+
+import com.amol.spring.boot.security.springSecurity.model.User;
+import com.amol.spring.boot.security.springSecurity.repository.UserRepository;
+
+public class CustomUserDetailsService implements UserDetailsService{
+
+	@Autowired
+	private UserRepository userRepository;
+	
+	@Override
+	public UserDetails loadUserByUsername(String userName) throws UsernameNotFoundException {
+		User user = userRepository.findByUserName(userName);
+		CustomUserDetails customUserDetails = null;
+		if(user != null) {
+			customUserDetails = new CustomUserDetails();
+			customUserDetails.setUser(user);
+		}else {
+			throw new UsernameNotFoundException("User not exist with name:"+userName);
+		}
+		return null;
+	}
+
+}
+
+
+
+
+-- so what it will do is, it will load user by username, and as the return type is 
+UserDetails, this is the interface, we have already created our customUserDetails
+there it wil set the user. which we found. 
+and in customUserDetails, we provided a simple Authority. with the specific role.
+
+
+
+
+
+
+
+
+
+37) now, go to SecurityConffig class,
+we will authorize based on the role first, and then we will cehck with the 
+url based authentication.
+so, in below method, we will write the authentication logic.
+
+
+@Override
+	protected void configure(HttpSecurity http) throws Exception {
+		http.csrf().disable();
+		http.headers().frameOptions().disable();
+	}
+	
+	
+	
+--  logic will be look like below.
+---
+http.authorizeRequests().antMatchers("")
+-- here, we need to write antmatchers.
+but till now,  we have written only one controler that is AdminController,
+so, write one more controlller.
+so that we can specify the URL based security.
+
+like ApplicationController.java
+- write emthods like getData();
+
+like below.
+
+package com.amol.spring.boot.security.springSecurity.controller;
+
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+@RequestMapping("/rest/auth")
+public class ApplicationController {
+
+	@GetMapping("/getData")
+	public String getData() {
+		return "Dhyan kar, Dhyan Kar!!!";
+	}
+}
+
+
+
+-- so for this API, we are going to add the url based security.
+
+-- then we will check for the role based security.
+
+so go to your config file, inside antmatchers, which we left blank, 
+i want to specify the url which is coming from /rest
+
+
+
+like below.
+
+		 package com.amol.spring.boot.security.springSecurity.config;
+
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestBuilders.formLogin;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+
+@Configuration
+public class SecurityConfig extends WebSecurityConfigurerAdapter {
+
+	@Autowired
+	private UserDetailsService userDetailsService;
+	
+	@Override
+	protected void configure(AuthenticationManagerBuilder auth) throws Exception {
+		auth.userDetailsService(userDetailsService).passwordEncoder(getEncoder());
+	}
+	
+	@Override
+	protected void configure(HttpSecurity http) throws Exception {
+		http.csrf().disable();
+		http.headers().frameOptions().disable();
+		/**
+		 * here, provide the antMatchers, we have written only one controler that is AdminController,
+		 * so, write one more controlller.
+		 */
+		http.authorizeRequests().antMatchers("/rest/**")
+		.authenticated().anyRequest().permitAll()
+		.and().
+		formLogin().permitAll();
+	}
+
+	@Bean
+	public BCryptPasswordEncoder getEncoder() {
+		return new BCryptPasswordEncoder();
+	}
+}
+
+
+
+-- which means that, my ApplicationController is the controlller which is having business methods.(rest endpoint starting with /rest/)
+so for that controller, i want to give url based security.
+
+
+- where as, my Admin controller is role based controller,(rest endpoint starting wit /secure/) which means that, only admin can create the user or add the user, 
+for this kind of reqiuirement, i will give role based security.
+
+now here, till this point, i have already given url based security .
+
+- now i have to give role based security.
+
+
+so, in order to fulfill this requirement, wrute one more and condition to above logic only.
+
+like below.
+
+
+package com.amol.spring.boot.security.springSecurity.config;
+
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestBuilders.formLogin;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+
+@Configuration
+public class SecurityConfig extends WebSecurityConfigurerAdapter {
+
+	@Autowired
+	private UserDetailsService userDetailsService;
+	
+	@Override
+	protected void configure(AuthenticationManagerBuilder auth) throws Exception {
+		auth.userDetailsService(userDetailsService).passwordEncoder(getEncoder());
+	}
+	
+	@Override
+	protected void configure(HttpSecurity http) throws Exception {
+		http.csrf().disable();
+		http.headers().frameOptions().disable();
+		/**
+		 * here, provide the antMatchers, we have written only one controler that is AdminController,
+		 * so, write one more controlller.
+		 */
+		http.authorizeRequests().antMatchers("/rest/**")
+		.authenticated().anyRequest().permitAll()
+		.and().
+		authorizeRequests()
+		.antMatchers("/secure/**")
+		.authenticated()
+		.anyRequest()
+		.hasAnyRole("ADMIN")
+		.and()
+		.formLogin().permitAll();
+	}
+
+	@Bean
+	public BCryptPasswordEncoder getEncoder() {
+		return new BCryptPasswordEncoder();
+	}
+}
+
+
+
+
+-- the explanation of above code is like:
+
+- if the URL is coming with /rest, then authenticate for everyone for user and Admin,
+it will authenticate.the requedst will come.
+
+but for /secure, it will authenticate if the url comes with /secure and the user is Admin then only 
+he can access that API
+
+
+38)enable Websecurity on the class Config.
+39)adn we want also global method security also .
+
+
+like below.
+
+@Configuration
+@EnableWebSecurity
+@EnableGlobalMethodSecurity(prePostEnabled = true)
+public class SecurityConfig extends WebSecurityConfigurerAdapter {
+
+
+40)and also we want to write the method level security based on the role, so we also have 
+to specify  preAuthorize on the controller method 
+
+
+
+like below.
+
+
+	@PreAuthorize("hasAnyRole('ADMIN')")
+	@PostMapping("/admin/add")
+	public String addUser(@RequestBody User user) {
+		String password = user.getPassword();
+		String encryptedPassword = bCryptPasswordEncoder.encode(password);
+		user.setPassword(encryptedPassword);
+		userRepository.save(user);
+		return "User added successfully....";
+	}
+	
+	
+	
+	
+41)lets up the server up
+
+42) so, for our business logic controller has url based security, and not the role based , so we will test that first.
+
+so open the browser, and hit the below url.
+
+
+
+http://localhost:8080/rest/auth/getData
+
+(here we are checking url based so herew role dosent matter it wil allow for user as well admin so first cehck with admin then immediately
+we will cehck with user for both, it should allow to hit the Application code means the rest
+endpoints startig with /rest)
+so it will ask for user name and password
+
+1)Admin Case:
+so user name will be : 
+password wil lbe : password
+
+2)User case : 
+Username: GumHuaSawali
+pw : password1
+
+- as you will clearly see, it will allow both user as well as admin to access rest endpoint start with /rest
+
+
+
+43) now we have to test the endpoint which onlu admin can access.
+
+- so we have to hit below post method to create a user . from postman
+http://localhost:8080/secure/rest/admin/add
+
+- so go to postman and hit the hit above url
+
+so, here, we will again one admin
+
+- so the payload will be like below
+
+{
+"userName":"secondAdmin",
+"password":"secondAdmin",
+"email":"sa@sa.com",
+
+"roles":[{
+	"roleName":"admin"
+}
+	]
+}
+
+
+
+and hit send
+
